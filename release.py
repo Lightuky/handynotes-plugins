@@ -85,8 +85,22 @@ def main():
     with ZipFile(target_zip, 'w', ZIP_DEFLATED) as zf:
         zip_write(zf, target_dir, path.basename(target_dir))
 
+    # Add changelog files to release/ dir
+    orig_changelog = path.join(plugin_dir, 'CHANGELOG.md')
+    part_changelog = path.join('release', 'CHANGELOG.partial.md')
+    full_changelog = path.join('release', 'CHANGELOG.full.md')
+    copy(orig_changelog, full_changelog)
+    with open(orig_changelog) as f, open(part_changelog, 'w') as c:
+        # Blindly take the most recent changelog section
+        if match := re.match(r'^# v\d+\s+(.+?)# v\d+', f.read(), re.M|re.S):
+            c.write(match.group(1).strip() + '\n')
+        else:
+            c.write('No changelog entries for this release.' + '\n')
+
     print(dedent(f"""
         Created: {path.abspath(target_zip)}
+        Created: {path.abspath(part_changelog)}
+        Created: {path.abspath(full_changelog)}
     """))
 
 if __name__ == '__main__':

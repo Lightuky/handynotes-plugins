@@ -15,34 +15,36 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Install python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
       # Populate variables based on $GITHUB_REF
       - name: Parse $GITHUB_REF
-        id: parse_github_ref
+        id: pref
         run: |
-          env | sort
-          echo "::set-output name=version::${GITHUB_REF:10}"
+          export NAME_VER=${GITHUB_REF#*_}
+          echo "::set-output name=name::${NAME_VER%-*}"
+          echo "::set-output name=version::${NAME_VER#*-v}"
+          echo "::set-output name=zip::HandyNotes_${NAME_VER}.zip"
           if [[ $GITHUB_REF =~ .*(alpha|beta).* ]]; then
-              echo "prerelease"
               echo "::set-output name=prerelease::true"
           else
-              echo "not prerelease"
               echo "::set-output name=prerelease::false"
           fi
 
-      # - name: Install Python 3.8
-      #   uses: actions/setup-python@v2
-      #   with:
-      #     python-version: '3.8'
+      # Build release artifacts
+      - name: Build release
+        run: python release.py ${GITHUB_REF:10}
 
-      # - name: Build Release
-      #   run: python release.py ${{ github.ref }}
-
-      # # Create the release and upload all RPMs
-      # - name: Create release
-      #   uses: softprops/action-gh-release@v1
-      #   with:
-      #     name: ${{ steps.parse_github_ref.outputs.version }}
-      #     files: rpmbuild/RPMS/x86_64/*.rpm
-      #     prerelease: ${{ steps.parse_github_ref.outputs.prerelease }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Create GitHub release and upload the .zip file
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.pref.outputs.name }} v${{ steps.pref.outputs.version }}
+          body_path: release/CHANGELOG.partial.md
+          files: release/${{ steps.pref.outputs.zip }}
+          prerelease: ${{ steps.pref.outputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
