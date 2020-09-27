@@ -1,0 +1,48 @@
+name: Automated Release
+
+on:
+  push:
+    tags:
+      - "[0-9][0-9]_[a-zA-Z]+-v[0-9]+"
+      - "[0-9][0-9]_[a-zA-Z]+-v[0-9]+.alpha[0-9]+"
+      - "[0-9][0-9]_[a-zA-Z]+-v[0-9]+.beta[0-9]+"
+
+jobs:
+  build:
+    name: Release Addon
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # Populate variables based on $GITHUB_REF
+      - name: Parse $GITHUB_REF
+        id: parse_github_ref
+        run: |
+          env | sort
+          echo "::set-output name=version::${GITHUB_REF:10}"
+          if [[ $GITHUB_REF =~ .*(alpha|beta).* ]]; then
+              echo "prerelease"
+              echo "::set-output name=prerelease::true"
+          else
+              echo "not prerelease"
+              echo "::set-output name=prerelease::false"
+          fi
+
+      # - name: Install Python 3.8
+      #   uses: actions/setup-python@v2
+      #   with:
+      #     python-version: '3.8'
+
+      # - name: Build Release
+      #   run: python release.py ${{ github.ref }}
+
+      # # Create the release and upload all RPMs
+      # - name: Create release
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     name: ${{ steps.parse_github_ref.outputs.version }}
+      #     files: rpmbuild/RPMS/x86_64/*.rpm
+      #     prerelease: ${{ steps.parse_github_ref.outputs.prerelease }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
