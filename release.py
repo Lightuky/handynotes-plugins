@@ -19,6 +19,12 @@ Examples:
     python release.py 09_Shadowlands-v1
 """
 
+PROJECTS = {
+    '08_MechagonAndNazjatar': 327568,
+    '08_VisionsOfNZoth': 358359,
+    '09_Shadowlands': 363739
+}
+
 eprint = lambda *args: print(*args, file=sys.stderr)
 
 def copy(src, dst):
@@ -96,6 +102,10 @@ def main():
             c.write(match.group(1).strip() + '\n')
         else:
             c.write('No changelog entries for this release.' + '\n')
+
+    # Write PROJECT_ID file
+    with open(path.join('release', 'PROJECT_ID'), 'w') as f:
+        f.write(str(PROJECTS[plugin]))
 
     print(dedent(f"""
         Created: {path.abspath(target_zip)}

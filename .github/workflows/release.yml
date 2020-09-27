@@ -29,22 +29,55 @@ jobs:
           echo "::set-output name=version::${NAME_VER#*-v}"
           echo "::set-output name=zip::HandyNotes_${NAME_VER}.zip"
           if [[ $GITHUB_REF =~ .*(alpha|beta).* ]]; then
+              if [[ $GITHUB_REF =~ .*alpha.* ]]; then
+                  echo "::set-output name=reltype::alpha"
+              else
+                  echo "::set-output name=reltype::beta"
+              fi
               echo "::set-output name=prerelease::true"
           else
+              echo "::set-output name=reltype::release"
               echo "::set-output name=prerelease::false"
           fi
 
       # Build release artifacts
       - name: Build release
-        run: python release.py ${GITHUB_REF:10}
+        id: release
+        run: |
+          python release.py ${GITHUB_REF:10}
+          echo "::set-output name=project_id::$(cat release/PROJECT_ID)"
 
-      # Create GitHub release and upload the .zip file
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v1
+      # Read CHANGELOG.md into variable
+      - name: Read CHANGELOG.full.md
+        id: changelog
+        uses: juliangruber/read-file-action@v1
         with:
-          name: ${{ steps.pref.outputs.name }} v${{ steps.pref.outputs.version }}
-          body_path: release/CHANGELOG.partial.md
-          files: release/${{ steps.pref.outputs.zip }}
-          prerelease: ${{ steps.pref.outputs.prerelease }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: release/CHANGELOG.full.md
+
+      # # Create GitHub release and upload the .zip file
+      # - name: Create GitHub release
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     name: ${{ steps.pref.outputs.name }} v${{ steps.pref.outputs.version }}
+      #     body_path: release/CHANGELOG.partial.md
+      #     files: release/${{ steps.pref.outputs.zip }}
+      #     prerelease: ${{ steps.pref.outputs.prerelease }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Create CurseForge release
+      # https://wow.curseforge.com/api/game/versions?token=<token>
+      # https://wow.curseforge.com/api/game/version-types?token=<token>
+      - name: Upload to CurseForge
+        uses: itsmeow/curseforge-upload@master
+        with:
+          token: ${{ secrets.CURSEFORGE_API_TOKEN }}
+          project_id: ${{ steps.release.outputs.project_id }}
+          game_endpoint: wow
+          file_path: release/${{ steps.pref.outputs.zip }}
+          changelog: ${{ steps.changelog.outputs.content }}
+          changelog_type: markdown
+          display_name: v${{ steps.pref.outputs.version }}
+          game_versions: WoW:9.0.1
+          release_type: ${{ steps.pref.outputs.reltype }}
+          relations: handynotes:requiredDependency
